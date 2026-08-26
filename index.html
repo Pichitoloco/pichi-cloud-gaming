@@ -16,15 +16,24 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0d1117; color: #c9d1d9; }
-    header { display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; background: #161b22; border-bottom: 1px solid #30363d; }
-    .logo { font-size: 1.2rem; font-weight: bold; color: #58a6ff; }
+    
+    header { display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; background: #161b22; border-bottom: 1px solid #30363d; flex-wrap: wrap; gap: 15px; }
+    .logo { font-size: 1.2rem; font-weight: bold; color: #58a6ff; cursor: pointer; }
+    
+    nav { display: flex; gap: 15px; }
+    nav button { background: transparent; border: none; color: #8b949e; font-size: 0.95rem; font-weight: bold; cursor: pointer; padding: 5px 10px; border-radius: 6px; }
+    nav button:hover, nav button.active { color: #58a6ff; background: #21262d; }
+
     .btn { background: #238636; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; }
     .btn:hover { background: #2ea043; }
     .btn-danger { background: #da3633; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
     .btn-danger:hover { background: #b62324; }
     
     .container { max-width: 900px; margin: 30px auto; padding: 0 20px; }
-    .card { background: #161b22; padding: 20px; border-radius: 8px; border: 1px solid #30363d; margin-bottom: 20px; }
+    .card { background: #161b22; padding: 25px; border-radius: 8px; border: 1px solid #30363d; margin-bottom: 20px; }
+    .card h2, .card h3 { color: #58a6ff; margin-bottom: 15px; }
+    .card p, .card ul { color: #c9d1d9; line-height: 1.6; }
+    .card ul { margin-left: 20px; margin-top: 10px; }
     
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); justify-content: center; align-items: center; z-index: 1000; }
     .modal-content { background: #161b22; padding: 30px; border-radius: 8px; border: 1px solid #30363d; width: 320px; text-align: center; }
@@ -33,13 +42,25 @@
     #calendar { background: #161b22; padding: 20px; border-radius: 8px; border: 1px solid #30363d; }
     .hidden { display: none !important; }
 
-    .user-item { display: flex; justify-content: space-between; align-items: center; background: #0d1117; padding: 8px 12px; border: 1px solid #30363d; border-radius: 6px; margin-top: 8px; }
+    .user-item, .sugerencia-item { display: flex; justify-content: space-between; align-items: center; background: #0d1117; padding: 12px; border: 1px solid #30363d; border-radius: 6px; margin-top: 10px; }
+    .sugerencia-content { display: flex; flex-direction: column; gap: 5px; }
+    .sugerencia-meta { font-size: 0.8rem; color: #8b949e; }
+    
+    textarea { width: 100%; height: 100px; padding: 10px; background: #0d1117; border: 1px solid #30363d; color: white; border-radius: 6px; margin-bottom: 15px; resize: vertical; }
   </style>
 </head>
 <body>
 
   <header>
-    <div class="logo">🎮 Pichi Cloud Gaming Hub</div>
+    <div class="logo" onclick="cambiarPestana('calendario')">🎮 Pichi Cloud Gaming Hub</div>
+    
+    <nav id="main-nav" class="hidden">
+      <button id="nav-calendario" class="active" onclick="cambiarPestana('calendario')">Calendario</button>
+      <button id="nav-sobre" onclick="cambiarPestana('sobre')">Sobre el Servidor</button>
+      <button id="nav-ayuda" onclick="cambiarPestana('ayuda')">Ayuda</button>
+      <button id="nav-sugerencias" onclick="cambiarPestana('sugerencias')">Sugerencias</button>
+    </nav>
+
     <div>
       <span id="user-display" style="margin-right: 15px; font-weight: bold; color: #58a6ff;"></span>
       <button class="btn" id="auth-btn" onclick="toggleAuth()">Iniciar Sesión</button>
@@ -50,7 +71,7 @@
     <!-- Vista Inicial -->
     <div id="hero" class="card" style="text-align: center; margin-top: 50px;">
       <h1>Servidor de Cloud Gaming de PichitolocoHD</h1>
-      <p style="margin-top: 10px; color: #8b949e;">Inicia sesión para ver y reservar turnos en el calendario.</p>
+      <p style="margin-top: 10px; color: #8b949e;">Inicia sesión para acceder al sistema de reservas y a la comunidad.</p>
     </div>
 
     <!-- Panel Admin -->
@@ -66,10 +87,57 @@
       <div id="users-list"></div>
     </div>
 
-    <!-- Sección Calendario -->
-    <div id="calendar-section" class="hidden">
+    <!-- Pestaña: Calendario -->
+    <div id="tab-calendario" class="tab-content hidden">
       <h2 style="margin-bottom: 15px;">Reservas de la Semana</h2>
       <div id="calendar"></div>
+    </div>
+
+    <!-- Pestaña: Sobre el Servidor -->
+    <div id="tab-sobre" class="tab-content hidden">
+      <div class="card">
+        <h2>🖥️ Sobre el Servidor</h2>
+        <p>Bienvenido a <strong>Pichi Cloud Gaming Hub</strong>, el servidor privado para jugar en la nube con la máxima calidad y rendimiento.</p>
+        <br>
+        <p><strong>Características clave:</strong></p>
+        <ul>
+          <li>Acceso remoto de alta velocidad a tus juegos favoritos.</li>
+          <li>Sistema de reserva por turnos para garantizar la disponibilidad.</li>
+          <li>Límite de tiempo por reserva para un uso equitativo entre amigos.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Pestaña: Ayuda -->
+    <div id="tab-ayuda" class="tab-content hidden">
+      <div class="card">
+        <h2>❓ Preguntas Frecuentes y Ayuda</h2>
+        <br>
+        <h3>¿Cómo reservo un turno?</h3>
+        <p>Ve a la pestaña <em>Calendario</em>, haz clic y arrastra sobre las horas que desees reservar. Puedes añadir un mensaje opcional con el juego que vas a jugar.</p>
+        <br>
+        <h3>¿Cuánto tiempo puedo reservar?</h3>
+        <p>El límite máximo por sesión es de <strong>5 horas seguidas</strong> para asegurar que todos los usuarios puedan disfrutar del servidor.</p>
+        <br>
+        <h3>¿Cómo cancelo una reserva?</h3>
+        <p>Simplemente haz clic sobre tu reserva en el calendario y confirma que deseas eliminarla. El Administrador también puede cancelar cualquier reserva si es necesario.</p>
+      </div>
+    </div>
+
+    <!-- Pestaña: Sugerencias -->
+    <div id="tab-sugerencias" class="tab-content hidden">
+      <div class="card">
+        <h2>💡 Envía tu Sugerencia</h2>
+        <p style="margin-bottom: 15px;">¿Tienes alguna idea para mejorar el servidor o el catálogo de juegos? ¡Déjala aquí!</p>
+        <textarea id="sugerencia-texto" placeholder="Escribe tu sugerencia o comentario aquí..."></textarea>
+        <button class="btn" onclick="enviarSugerencia()">Enviar Sugerencia</button>
+      </div>
+
+      <!-- Buzón visible solo para el Admin -->
+      <div id="admin-sugerencias-card" class="card hidden">
+        <h2>📬 Buzón de Sugerencias (Exclusivo Admin)</h2>
+        <div id="sugerencias-list"></div>
+      </div>
     </div>
   </div>
 
@@ -85,7 +153,6 @@
   </div>
 
   <script>
-    // TU CONFIGURACIÓN DE FIREBASE
     const firebaseConfig = {
       apiKey: "AIzaSyAv4BmBt...px0EA",
       authDomain: "pichi-cloud-gaming.firebaseapp.com",
@@ -102,6 +169,7 @@
     let currentUser = null;
     let isAdmin = false;
     let calendar;
+    let calendarInitialized = false;
 
     function openModal() { document.getElementById('login-modal').style.display = 'flex'; }
     function closeModal() { document.getElementById('login-modal').style.display = 'none'; }
@@ -120,7 +188,7 @@
       const p = document.getElementById('password').value.trim();
 
       if (u === 'PichitolocoHD' && p === 'Man0lo.Ex') {
-        completarLogin('Admin', true);
+        completarLogin('PichitolocoHD', true);
         return;
       }
 
@@ -140,17 +208,39 @@
       closeModal();
       
       document.getElementById('hero').classList.add('hidden');
-      document.getElementById('calendar-section').classList.remove('hidden');
+      document.getElementById('main-nav').classList.remove('hidden');
       document.getElementById('user-display').innerText = 'Hola, ' + username;
       document.getElementById('auth-btn').innerText = 'Cerrar Sesión';
       document.getElementById('auth-btn').classList.add('btn-danger');
 
       if (isAdmin) {
         document.getElementById('admin-panel').classList.remove('hidden');
+        document.getElementById('admin-sugerencias-card').classList.remove('hidden');
         cargarListaUsuarios();
+        cargarSugerenciasAdmin();
       }
 
-      initCalendar();
+      cambiarPestana('calendario');
+    }
+
+    function cambiarPestana(nombrePestana) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
+
+      const pestanaTarget = document.getElementById('tab-' + nombrePestana);
+      const navTarget = document.getElementById('nav-' + nombrePestana);
+
+      if (pestanaTarget) pestanaTarget.classList.remove('hidden');
+      if (navTarget) navTarget.classList.add('active');
+
+      if (nombrePestana === 'calendario') {
+        if (!calendarInitialized) {
+          initCalendar();
+          calendarInitialized = true;
+        } else if (calendar) {
+          setTimeout(() => calendar.updateSize(), 50);
+        }
+      }
     }
 
     function crearUsuario() {
@@ -169,7 +259,6 @@
       });
     }
 
-    // FUNCIÓN PARA ELIMINAR USUARIO DESDE EL PANEL ADMIN
     function borrarUsuario(username) {
       if (confirm('¿Estás seguro de borrar al usuario "' + username + '"?')) {
         db.ref('usuarios/' + username).remove()
@@ -199,6 +288,57 @@
       });
     }
 
+    // GESTIÓN DE SUGERENCIAS
+    function enviarSugerencia() {
+      const texto = document.getElementById('sugerencia-texto').value.trim();
+      if (!texto) return alert('Por favor escribe algo en tu sugerencia.');
+
+      const nuevaRef = db.ref('sugerencias').push();
+      nuevaRef.set({
+        user: currentUser,
+        texto: texto,
+        fecha: new Date().toLocaleString()
+      }, err => {
+        if (err) {
+          alert('Error al enviar la sugerencia.');
+        } else {
+          alert('¡Sugerencia enviada correctamente!');
+          document.getElementById('sugerencia-texto').value = '';
+        }
+      });
+    }
+
+    function borrarSugerencia(id) {
+      if (confirm('¿Eliminar esta sugerencia?')) {
+        db.ref('sugerencias/' + id).remove();
+      }
+    }
+
+    function cargarSugerenciasAdmin() {
+      db.ref('sugerencias').on('value', snapshot => {
+        const container = document.getElementById('sugerencias-list');
+        container.innerHTML = '';
+        const data = snapshot.val();
+        if (data) {
+          Object.keys(data).forEach(id => {
+            const item = data[id];
+            const div = document.createElement('div');
+            div.className = 'sugerencia-item';
+            div.innerHTML = `
+              <div class="sugerencia-content">
+                <span>${item.texto}</span>
+                <span class="sugerencia-meta">Enviado por <strong>${item.user}</strong> el ${item.fecha}</span>
+              </div>
+              <button class="btn-danger" onclick="borrarSugerencia('${id}')">Eliminar</button>
+            `;
+            container.appendChild(div);
+          });
+        } else {
+          container.innerHTML = '<p style="color: #8b949e; font-size: 0.9rem;">No hay sugerencias registradas.</p>';
+        }
+      });
+    }
+
     function initCalendar() {
       const calendarEl = document.getElementById('calendar');
       calendar = new FullCalendar.Calendar(calendarEl, {
@@ -206,10 +346,8 @@
         headerToolbar: { left: 'prev,next today', center: 'title', right: 'timeGridWeek,timeGridDay' },
         selectable: true,
         select: function(info) {
-          // Calcular la duración de la reserva en horas
           const duracionHoras = (info.end - info.start) / (1000 * 60 * 60);
         
-          // Limite de 5 horas
           if (duracionHoras > 5) {
             alert('No puedes reservar más de 5 horas seguidas. Has seleccionado ' + duracionHoras.toFixed(1) + ' horas.');
             calendar.unselect();
@@ -228,7 +366,6 @@
             });
           }
         },
-        // BORRAR RESERVA AL HACER CLIC EN ELLA
         eventClick: function(info) {
           const reservaUser = info.event.extendedProps.user;
           if (isAdmin || currentUser === reservaUser) {
