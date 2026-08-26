@@ -376,7 +376,7 @@ function initCalendar() {
             return;
           }
 
-          const titulo = prompt('Reservar turno para ' + currentUser + '. Ingresa nota/juego (opcional):');
+          const titulo = prompt('Reservar turno para ' + currentUser + '. Ingresa nota/juego ( - OPCIONAL - ):');
           if (titulo !== null) {
             const nuevaReservaRef = db.ref('reservas').push();
             nuevaReservaRef.set({
