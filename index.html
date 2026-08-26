@@ -339,21 +339,43 @@
       });
     }
 
-    function initCalendar() {
+function initCalendar() {
       const calendarEl = document.getElementById('calendar');
       calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'timeGridWeek',
         headerToolbar: { left: 'prev,next today', center: 'title', right: 'timeGridWeek,timeGridDay' },
         selectable: true,
         select: function(info) {
-          const duracionHoras = (info.end - info.start) / (1000 * 60 * 60);
-        
-          if (duracionHoras > 5) {
-            alert('No puedes reservar más de 5 horas seguidas. Has seleccionado ' + duracionHoras.toFixed(1) + ' horas.');
+          const duracionNueva = (info.end - info.start) / (1000 * 60 * 60);
+
+          // Obtener el día seleccionado en formato YYYY-MM-DD
+          const fechaSeleccionada = info.startStr.split('T')[0];
+
+          // Calcular el total de horas que el usuario ya tiene reservadas para este día
+          let horasAcumuladas = 0;
+          const todosLosEventos = calendar.getEvents();
+
+          todosLosEventos.forEach(evento => {
+            const esMismoUsuario = evento.extendedProps.user === currentUser;
+            const fechaEvento = evento.startStr.split('T')[0];
+
+            if (esMismoUsuario && fechaEvento === fechaSeleccionada) {
+              const duracion = (evento.end - evento.start) / (1000 * 60 * 60);
+              horasAcumuladas += duracion;
+            }
+          });
+
+          const totalHoras = horasAcumuladas + duracionNueva;
+
+          if (totalHoras > 5) {
+            alert(
+              'Límite alcanzado: solo puedes reservar un máximo de 5 horas diarias.\n' +
+              'Ya tienes ' + horasAcumuladas.toFixed(1) + 'h reservadas hoy e intentas añadir ' + duracionNueva.toFixed(1) + 'h (Total: ' + totalHoras.toFixed(1) + 'h).'
+            );
             calendar.unselect();
             return;
           }
-        
+
           const titulo = prompt('Reservar turno para ' + currentUser + '. Ingresa nota/juego (opcional):');
           if (titulo !== null) {
             const nuevaReservaRef = db.ref('reservas').push();
