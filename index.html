@@ -206,6 +206,16 @@
         headerToolbar: { left: 'prev,next today', center: 'title', right: 'timeGridWeek,timeGridDay' },
         selectable: true,
         select: function(info) {
+          // Calcular la duración de la reserva en horas
+          const duracionHoras = (info.end - info.start) / (1000 * 60 * 60);
+        
+          // Limite de 5 horas
+          if (duracionHoras > 5) {
+            alert('No puedes reservar más de 5 horas seguidas. Has seleccionado ' + duracionHoras.toFixed(1) + ' horas.');
+            calendar.unselect();
+            return;
+          }
+        
           const titulo = prompt('Reservar turno para ' + currentUser + '. Ingresa nota/juego (opcional):');
           if (titulo !== null) {
             const nuevaReservaRef = db.ref('reservas').push();
@@ -217,7 +227,7 @@
               user: currentUser
             });
           }
-        },
+        }
         // BORRAR RESERVA AL HACER CLIC EN ELLA
         eventClick: function(info) {
           const reservaUser = info.event.extendedProps.user;
