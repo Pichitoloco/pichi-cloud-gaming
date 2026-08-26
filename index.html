@@ -20,7 +20,7 @@
     .logo { font-size: 1.2rem; font-weight: bold; color: #58a6ff; }
     .btn { background: #238636; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; }
     .btn:hover { background: #2ea043; }
-    .btn-danger { background: #da3633; }
+    .btn-danger { background: #da3633; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
     .btn-danger:hover { background: #b62324; }
     
     .container { max-width: 900px; margin: 30px auto; padding: 0 20px; }
@@ -32,6 +32,8 @@
     
     #calendar { background: #161b22; padding: 20px; border-radius: 8px; border: 1px solid #30363d; }
     .hidden { display: none !important; }
+
+    .user-item { display: flex; justify-content: space-between; align-items: center; background: #0d1117; padding: 8px 12px; border: 1px solid #30363d; border-radius: 6px; margin-top: 8px; }
   </style>
 </head>
 <body>
@@ -51,14 +53,17 @@
       <p style="margin-top: 10px; color: #8b949e;">Inicia sesión para ver y reservar turnos en el calendario.</p>
     </div>
 
-    <!-- Panel Admin: Crear usuarios -->
+    <!-- Panel Admin -->
     <div id="admin-panel" class="card hidden">
-      <h3>Panel de Administrador - Crear Usuario</h3>
-      <div style="display: flex; gap: 10px; margin-top: 15px;">
+      <h3>Panel de Administrador</h3>
+      <div style="display: flex; gap: 10px; margin-top: 15px; margin-bottom: 20px;">
         <input type="text" id="new-user" placeholder="Nombre usuario" style="padding: 8px; background: #0d1117; border: 1px solid #30363d; color: white; border-radius: 4px;">
         <input type="password" id="new-pass" placeholder="Contraseña" style="padding: 8px; background: #0d1117; border: 1px solid #30363d; color: white; border-radius: 4px;">
         <button class="btn" onclick="crearUsuario()">Guardar Amigo</button>
       </div>
+
+      <h4 style="margin-top: 10px; color: #8b949e;">Usuarios Registrados:</h4>
+      <div id="users-list"></div>
     </div>
 
     <!-- Sección Calendario -->
@@ -80,22 +85,22 @@
   </div>
 
   <script>
-    // 1. REEMPLAZA ESTO CON TUS DATOS DE FIREBASE
+    // TU CONFIGURACIÓN DE FIREBASE
     const firebaseConfig = {
       apiKey: "AIzaSyAv4BmBt...px0EA",
       authDomain: "pichi-cloud-gaming.firebaseapp.com",
+      databaseURL: "https://pichi-cloud-gaming-default-rtdb.firebaseio.com",
       projectId: "pichi-cloud-gaming",
       storageBucket: "pichi-cloud-gaming.firebasestorage.app",
       messagingSenderId: "237603577333",
-      appId: "1:237603577333:web:eb89af9e3ec73fdf394bc",
-      measurementId: "G-N2V7JHZM86"
+      appId: "1:237603577333:web:eb89af9e3ec73fdf394bc"
     };
 
-    // Inicializar Firebase
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
     let currentUser = null;
+    let isAdmin = false;
     let calendar;
 
     function openModal() { document.getElementById('login-modal').style.display = 'flex'; }
@@ -114,13 +119,11 @@
       const u = document.getElementById('username').value.trim();
       const p = document.getElementById('password').value.trim();
 
-      // Login Admin por defecto
       if (u === 'Admin' && p === 'Loquesea24') {
         completarLogin('Admin', true);
         return;
       }
 
-      // Validar otros usuarios desde Firebase
       db.ref('usuarios/' + u).once('value', snapshot => {
         const userData = snapshot.val();
         if (userData && userData.password === p) {
@@ -131,8 +134,9 @@
       });
     }
 
-    function completarLogin(username, isAdmin) {
+    function completarLogin(username, adminStatus) {
       currentUser = username;
+      isAdmin = adminStatus;
       closeModal();
       
       document.getElementById('hero').classList.add('hidden');
@@ -143,6 +147,7 @@
 
       if (isAdmin) {
         document.getElementById('admin-panel').classList.remove('hidden');
+        cargarListaUsuarios();
       }
 
       initCalendar();
@@ -164,6 +169,36 @@
       });
     }
 
+    // FUNCIÓN PARA ELIMINAR USUARIO DESDE EL PANEL ADMIN
+    function borrarUsuario(username) {
+      if (confirm('¿Estás seguro de borrar al usuario "' + username + '"?')) {
+        db.ref('usuarios/' + username).remove()
+          .then(() => alert('Usuario eliminado correctamente.'))
+          .catch(err => alert('Error al eliminar: ' + err.message));
+      }
+    }
+
+    function cargarListaUsuarios() {
+      db.ref('usuarios').on('value', snapshot => {
+        const container = document.getElementById('users-list');
+        container.innerHTML = '';
+        const data = snapshot.val();
+        if (data) {
+          Object.keys(data).forEach(u => {
+            const div = document.createElement('div');
+            div.className = 'user-item';
+            div.innerHTML = `
+              <span><strong>${u}</strong></span>
+              <button class="btn-danger" onclick="borrarUsuario('${u}')">Eliminar</button>
+            `;
+            container.appendChild(div);
+          });
+        } else {
+          container.innerHTML = '<p style="color: #8b949e; font-size: 0.9rem;">No hay usuarios creados aún.</p>';
+        }
+      });
+    }
+
     function initCalendar() {
       const calendarEl = document.getElementById('calendar');
       calendar = new FullCalendar.Calendar(calendarEl, {
@@ -171,21 +206,32 @@
         headerToolbar: { left: 'prev,next today', center: 'title', right: 'timeGridWeek,timeGridDay' },
         selectable: true,
         select: function(info) {
-          const titulo = prompt('Reservar para ' + currentUser + '. Ingresa una nota/juego (opcional):');
+          const titulo = prompt('Reservar turno para ' + currentUser + '. Ingresa nota/juego (opcional):');
           if (titulo !== null) {
-            const nuevaReserva = {
+            const nuevaReservaRef = db.ref('reservas').push();
+            nuevaReservaRef.set({
+              id: nuevaReservaRef.key,
               title: currentUser + (titulo ? ': ' + titulo : ''),
               start: info.startStr,
               end: info.endStr,
               user: currentUser
-            };
-            db.ref('reservas').push(nuevaReserva);
+            });
+          }
+        },
+        // BORRAR RESERVA AL HACER CLIC EN ELLA
+        eventClick: function(info) {
+          const reservaUser = info.event.extendedProps.user;
+          if (isAdmin || currentUser === reservaUser) {
+            if (confirm('¿Quieres cancelar esta reserva?')) {
+              db.ref('reservas/' + info.event.id).remove();
+            }
+          } else {
+            alert('Solo ' + reservaUser + ' o el Admin pueden borrar esta reserva.');
           }
         }
       });
       calendar.render();
 
-      // Cargar reservas en tiempo real desde Firebase
       db.ref('reservas').on('value', snapshot => {
         calendar.removeAllEvents();
         const data = snapshot.val();
