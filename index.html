@@ -2,32 +2,199 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Pichi Cloud Gaming Reservas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cloud Gaming - Reservas</title>
+  
+  <!-- FullCalendar -->
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
   <style>
-    body { font-family: sans-serif; margin: 0; background: #121212; color: white; }
-    header { display: flex; justify-content: flex-end; padding: 20px; }
-    .btn-login { background: #007bff; color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 5px; }
-    .container { max-width: 800px; margin: 50px auto; text-align: center; }
-    .hidden { display: none; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0d1117; color: #c9d1d9; }
+    header { display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; background: #161b22; border-bottom: 1px solid #30363d; }
+    .logo { font-size: 1.2rem; font-weight: bold; color: #58a6ff; }
+    .btn { background: #238636; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+    .btn:hover { background: #2ea043; }
+    .btn-danger { background: #da3633; }
+    .btn-danger:hover { background: #b62324; }
+    
+    .container { max-width: 900px; margin: 30px auto; padding: 0 20px; }
+    .card { background: #161b22; padding: 20px; border-radius: 8px; border: 1px solid #30363d; margin-bottom: 20px; }
+    
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); justify-content: center; align-items: center; z-index: 1000; }
+    .modal-content { background: #161b22; padding: 30px; border-radius: 8px; border: 1px solid #30363d; width: 320px; text-align: center; }
+    .modal-content input { width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 6px; border: 1px solid #30363d; background: #0d1117; color: white; }
+    
+    #calendar { background: #161b22; padding: 20px; border-radius: 8px; border: 1px solid #30363d; }
+    .hidden { display: none !important; }
   </style>
 </head>
 <body>
 
   <header>
-    <button class="btn-login" onclick="mostrarLogin()">Iniciar Sesión</button>
+    <div class="logo">🎮 Cloud Gaming Hub</div>
+    <div>
+      <span id="user-display" style="margin-right: 15px; font-weight: bold; color: #58a6ff;"></span>
+      <button class="btn" id="auth-btn" onclick="toggleAuth()">Iniciar Sesión</button>
+    </div>
   </header>
 
-  <div class="container" id="main-content">
-    <h1>Servidor Cloud Gaming</h1>
-    <p>Inicia sesión para reservar tu turno de juego.</p>
-  </div>
-
-  <div id="login-modal" class="hidden">
+  <div class="container">
+    <!-- Vista Inicial -->
+    <div id="hero" class="card" style="text-align: center; margin-top: 50px;">
+      <h1>Servidor de Cloud Gaming</h1>
+      <p style="margin-top: 10px; color: #8b949e;">Inicia sesión para ver y reservar turnos en el calendario.</p>
     </div>
 
+    <!-- Panel Admin: Crear usuarios -->
+    <div id="admin-panel" class="card hidden">
+      <h3>Panel de Administrador - Crear Usuario</h3>
+      <div style="display: flex; gap: 10px; margin-top: 15px;">
+        <input type="text" id="new-user" placeholder="Nombre usuario" style="padding: 8px; background: #0d1117; border: 1px solid #30363d; color: white; border-radius: 4px;">
+        <input type="password" id="new-pass" placeholder="Contraseña" style="padding: 8px; background: #0d1117; border: 1px solid #30363d; color: white; border-radius: 4px;">
+        <button class="btn" onclick="crearUsuario()">Guardar Amigo</button>
+      </div>
+    </div>
+
+    <!-- Sección Calendario -->
+    <div id="calendar-section" class="hidden">
+      <h2 style="margin-bottom: 15px;">Reservas de la Semana</h2>
+      <div id="calendar"></div>
+    </div>
+  </div>
+
+  <!-- Modal Login -->
+  <div class="modal" id="login-modal">
+    <div class="modal-content">
+      <h2>Iniciar Sesión</h2>
+      <input type="text" id="username" placeholder="Usuario">
+      <input type="password" id="password" placeholder="Contraseña">
+      <button class="btn" style="width: 100%;" onclick="login()">Entrar</button>
+      <button onclick="closeModal()" style="margin-top: 10px; background: transparent; border: none; color: #8b949e; cursor: pointer;">Cancelar</button>
+    </div>
+  </div>
+
   <script>
-    function mostrarLogin() {
-      // Lógica para abrir el modal de inicio de sesión
+    // 1. REEMPLAZA ESTO CON TUS DATOS DE FIREBASE
+    const firebaseConfig = {
+      apiKey: "AIzaSyAv4BmBt...px0EA",
+      authDomain: "pichi-cloud-gaming.firebaseapp.com",
+      projectId: "pichi-cloud-gaming",
+      storageBucket: "pichi-cloud-gaming.firebasestorage.app",
+      messagingSenderId: "237603577333",
+      appId: "1:237603577333:web:eb89af9e3ec73fdf394bc",
+      measurementId: "G-N2V7JHZM86"
+    };
+
+    // Inicializar Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let currentUser = null;
+    let calendar;
+
+    function openModal() { document.getElementById('login-modal').style.display = 'flex'; }
+    function closeModal() { document.getElementById('login-modal').style.display = 'none'; }
+
+    function toggleAuth() {
+      if (currentUser) {
+        currentUser = null;
+        location.reload();
+      } else {
+        openModal();
+      }
+    }
+
+    function login() {
+      const u = document.getElementById('username').value.trim();
+      const p = document.getElementById('password').value.trim();
+
+      // Login Admin por defecto
+      if (u === 'Admin' && p === 'Loquesea24') {
+        completarLogin('Admin', true);
+        return;
+      }
+
+      // Validar otros usuarios desde Firebase
+      db.ref('usuarios/' + u).once('value', snapshot => {
+        const userData = snapshot.val();
+        if (userData && userData.password === p) {
+          completarLogin(u, false);
+        } else {
+          alert('Usuario o contraseña incorrectos.');
+        }
+      });
+    }
+
+    function completarLogin(username, isAdmin) {
+      currentUser = username;
+      closeModal();
+      
+      document.getElementById('hero').classList.add('hidden');
+      document.getElementById('calendar-section').classList.remove('hidden');
+      document.getElementById('user-display').innerText = 'Hola, ' + username;
+      document.getElementById('auth-btn').innerText = 'Cerrar Sesión';
+      document.getElementById('auth-btn').classList.add('btn-danger');
+
+      if (isAdmin) {
+        document.getElementById('admin-panel').classList.remove('hidden');
+      }
+
+      initCalendar();
+    }
+
+    function crearUsuario() {
+      const u = document.getElementById('new-user').value.trim();
+      const p = document.getElementById('new-pass').value.trim();
+
+      if (!u || !p) return alert('Rellena ambos campos');
+
+      db.ref('usuarios/' + u).set({ password: p }, err => {
+        if (err) alert('Error al guardar');
+        else {
+          alert('Usuario ' + u + ' creado con éxito!');
+          document.getElementById('new-user').value = '';
+          document.getElementById('new-pass').value = '';
+        }
+      });
+    }
+
+    function initCalendar() {
+      const calendarEl = document.getElementById('calendar');
+      calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'timeGridWeek',
+        headerToolbar: { left: 'prev,next today', center: 'title', right: 'timeGridWeek,timeGridDay' },
+        selectable: true,
+        select: function(info) {
+          const titulo = prompt('Reservar para ' + currentUser + '. Ingresa una nota/juego (opcional):');
+          if (titulo !== null) {
+            const nuevaReserva = {
+              title: currentUser + (titulo ? ': ' + titulo : ''),
+              start: info.startStr,
+              end: info.endStr,
+              user: currentUser
+            };
+            db.ref('reservas').push(nuevaReserva);
+          }
+        }
+      });
+      calendar.render();
+
+      // Cargar reservas en tiempo real desde Firebase
+      db.ref('reservas').on('value', snapshot => {
+        calendar.removeAllEvents();
+        const data = snapshot.val();
+        if (data) {
+          Object.keys(data).forEach(key => {
+            calendar.addEvent(data[key]);
+          });
+        }
+      });
     }
   </script>
 </body>
