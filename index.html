@@ -361,17 +361,26 @@
 
 function initCalendar() {
       const calendarEl = document.getElementById('calendar');
+      
+      // Detectar si el usuario está en móvil (pantalla menor a 768px)
+      const esMovil = window.innerWidth < 768;
+
       calendar = new FullCalendar.Calendar(calendarEl, {
-        initialView: 'timeGridWeek',
-        headerToolbar: { left: 'prev,next today', center: 'title', right: 'timeGridWeek,timeGridDay' },
+        // En móvil abre la vista diaria; en PC la semanal
+        initialView: esMovil ? 'timeGridDay' : 'timeGridWeek',
+        headerToolbar: {
+          left: 'prev,next today',
+          center: 'title',
+          right: esMovil ? 'timeGridDay' : 'timeGridWeek,timeGridDay'
+        },
         selectable: true,
+        selectLongPressDelay: 200, // Hace que la selección táctil al mantener presionado en móvil sea más precisa
+        height: esMovil ? 'auto' : 650,
+        
         select: function(info) {
           const duracionNueva = (info.end - info.start) / (1000 * 60 * 60);
-
-          // Obtener el día seleccionado en formato YYYY-MM-DD
           const fechaSeleccionada = info.startStr.split('T')[0];
 
-          // Calcular el total de horas que el usuario ya tiene reservadas para este día
           let horasAcumuladas = 0;
           const todosLosEventos = calendar.getEvents();
 
@@ -396,7 +405,7 @@ function initCalendar() {
             return;
           }
 
-          const titulo = prompt('Reservar turno para ' + currentUser + '. Ingresa nota/juego ( - OPCIONAL - ):');
+          const titulo = prompt('Reservar turno para ' + currentUser + '. Ingresa nota/juego (opcional):');
           if (titulo !== null) {
             const nuevaReservaRef = db.ref('reservas').push();
             nuevaReservaRef.set({
