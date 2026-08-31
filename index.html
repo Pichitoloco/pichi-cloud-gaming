@@ -15,13 +15,10 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
   <style>
-    
-    
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background-color: #0d1117;
-      /* Añadir estas líneas para la imagen de fondo: */
       background-image: linear-gradient(rgba(13, 17, 23, 0.85), rgba(13, 17, 23, 0.85)), url('https://www.techfinitive.com/wp-content/uploads/2023/02/what-is-a-server-jpg.webp');
       background-size: cover;
       background-position: center;
@@ -38,14 +35,16 @@
 
     .btn { background: #238636; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; }
     .btn:hover { background: #2ea043; }
-    .btn-danger { background: #da3633; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+    .btn:disabled { background: #30363d !important; color: #8b949e !important; cursor: not-allowed; }
+    .btn-warning { background: #d29922; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+    .btn-warning:hover { background: #bb861c; }
+    .btn-danger { background: #da3633; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight: bold; }
     .btn-danger:hover { background: #b62324; }
     
     .container { max-width: 900px; margin: 30px auto; padding: 0 20px; }
     .card { background: #161b22; padding: 25px; border-radius: 8px; border: 1px solid #30363d; margin-bottom: 20px; }
     .card h2, .card h3 { color: #58a6ff; margin-bottom: 15px; }
     .card p, .card ul { color: #c9d1d9; line-height: 1.6; }
-    .card ul { margin-left: 20px; margin-top: 10px; }
     
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); justify-content: center; align-items: center; z-index: 1000; }
     .modal-content { background: #161b22; padding: 30px; border-radius: 8px; border: 1px solid #30363d; width: 320px; text-align: center; }
@@ -59,6 +58,20 @@
     .sugerencia-meta { font-size: 0.8rem; color: #8b949e; }
     
     textarea { width: 100%; height: 100px; padding: 10px; background: #0d1117; border: 1px solid #30363d; color: white; border-radius: 6px; margin-bottom: 15px; resize: vertical; }
+
+    /* Estilos para el panel de encendido rápido */
+    .server-control-box {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
   </style>
 </head>
 <body>
@@ -85,26 +98,49 @@
       <h1>Servidor de Cloud Gaming de PichitolocoHD</h1>
       <p style="margin-top: 10px; color: #8b949e;">Inicia sesión para acceder al sistema de reservas y a la comunidad.</p>
       
-      <!-- FOTO DEL SERVIDOR -->
       <img src="images/serverimage1.jpg" alt="Foto del Servidor" style="max-width: 90%; height: auto; border-radius: 8px; margin-top: 20px; border: 1px solid #30363d;">
       <p style="margin-top: 10px; color: #8b949e;">GTX 1650 + I7 8700K + 16gb ram DDR4</p>
     </div>
 
     <!-- Panel Admin -->
     <div id="admin-panel" class="card hidden">
-      <h3>Panel de Administrador</h3>
-      <div style="display: flex; gap: 10px; margin-top: 15px; margin-bottom: 20px;">
+      <h3>👑 Panel de Administrador</h3>
+      
+      <!-- CONTROL DE HARDWARE EXCLUSIVO ADMIN -->
+      <div class="server-control-box" style="border-color: #d29922; margin-top: 15px; margin-bottom: 25px;">
+        <div>
+          <h4 style="color: #d29922;">🎛️ Control Directo del Servidor (ESP32)</h4>
+          <p style="font-size: 0.85rem; color: #8b949e;">Acciones de hardware en tiempo real vía optoacoplador.</p>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button class="btn" onclick="enviarComando('WAKE')">⚡ Power (0.5s)</button>
+          <button class="btn-warning" onclick="enviarComando('REBOOT')">🔄 Reset SW</button>
+          <button class="btn-danger" onclick="enviarComando('SHUTDOWN')">🛑 Apagado Forzado (5s)</button>
+        </div>
+      </div>
+
+      <h4 style="color: #58a6ff;">Gestión de Usuarios:</h4>
+      <div style="display: flex; gap: 10px; margin-top: 10px; margin-bottom: 20px;">
         <input type="text" id="new-user" placeholder="Nombre usuario" style="padding: 8px; background: #0d1117; border: 1px solid #30363d; color: white; border-radius: 4px;">
         <input type="password" id="new-pass" placeholder="Contraseña" style="padding: 8px; background: #0d1117; border: 1px solid #30363d; color: white; border-radius: 4px;">
         <button class="btn" onclick="crearUsuario()">Guardar Amigo</button>
       </div>
 
-      <h4 style="margin-top: 10px; color: #8b949e;">Usuarios Registrados:</h4>
+      <h4 style="color: #8b949e;">Usuarios Registrados:</h4>
       <div id="users-list"></div>
     </div>
 
     <!-- Pestaña: Calendario -->
     <div id="tab-calendario" class="tab-content hidden">
+      <!-- CONTROL DE USUARIO (SOLO DENTRO DE RESERVA) -->
+      <div class="server-control-box">
+        <div>
+          <span style="font-weight: bold; color: #58a6ff;">🖥️ Control de Encendido</span>
+          <p id="user-power-status" style="font-size: 0.85rem; color: #8b949e;">Comprobando reserva...</p>
+        </div>
+        <button id="user-power-btn" class="btn" disabled onclick="enviarComando('WAKE')">⚡ Encender Servidor</button>
+      </div>
+
       <h2 style="margin-bottom: 15px;">Reservas de la Semana</h2>
       <div id="calendar"></div>
     </div>
@@ -125,22 +161,15 @@
     </div>
 
     <!-- Pestaña: Ayuda -->
-    <!-- Pestaña: Ayuda -->
     <div id="tab-ayuda" class="tab-content hidden">
       <div class="card">
         <h2>❓ Preguntas Frecuentes y Ayuda</h2>
-        
-        <!-- Imagen desde GitHub -->
         <img src="https://img.magnific.com/foto-gratis/turistas-suben-colina-al-amanecer_1150-19692.jpg?semt=ais_hybrid&w=740&q=80" alt="Guía de uso" style="width: 100%; max-height: 350px; object-fit: cover; border-radius: 8px; margin: 15px 0; border: 1px solid #30363d;">
-    
         <h3>¿Cómo reservo un turno?</h3>
         <p>Ve a la pestaña <em>Calendario</em>, haz clic y arrastra sobre las horas que desees reservar. Puedes añadir un mensaje opcional con el juego que vas a jugar.</p>
         <br>
-        <h3>¿Cuánto tiempo puedo reservar?</h3>
-        <p>El límite máximo por sesión es de <strong>5 horas diarias</strong> en total.</p>
-        <br>
-        <h3>¿Cómo cancelo una reserva?</h3>
-        <p>Simplemente haz clic sobre tu reserva en el calendario y confirma que deseas eliminarla.</p>
+        <h3>¿Cuándo puedo encender el PC?</h3>
+        <p>El botón de encendido se activará únicamente cuando falten <strong>10 minutos para tu reserva</strong> o durante la duración de la misma.</p>
       </div>
     </div>
 
@@ -153,7 +182,6 @@
         <button class="btn" onclick="enviarSugerencia()">Enviar Sugerencia</button>
       </div>
 
-      <!-- Buzón visible solo para el Admin -->
       <div id="admin-sugerencias-card" class="card hidden">
         <h2>📬 Buzón de Sugerencias (Exclusivo Admin)</h2>
         <div id="sugerencias-list"></div>
@@ -174,7 +202,7 @@
 
   <script>
     const firebaseConfig = {
-      apiKey: "AIzaSyAv4BmBt...px0EA",
+      apiKey: "AIzaSyAv4Be0tmUgmKsllHr6YfBlN8cT69pxOEA",
       authDomain: "pichi-cloud-gaming.firebaseapp.com",
       databaseURL: "https://pichi-cloud-gaming-default-rtdb.europe-west1.firebasedatabase.app",
       projectId: "pichi-cloud-gaming",
@@ -190,6 +218,7 @@
     let isAdmin = false;
     let calendar;
     let calendarInitialized = false;
+    let reservasUsuario = [];
 
     function openModal() { document.getElementById('login-modal').style.display = 'flex'; }
     function closeModal() { document.getElementById('login-modal').style.display = 'none'; }
@@ -241,6 +270,10 @@
       }
 
       cambiarPestana('calendario');
+      
+      // Escuchar cambios de reservas y reevaluar si el usuario puede encender el servidor
+      escucharPermisosEncendido();
+      setInterval(verificarTiempoReserva, 15000); // Comprobar cada 15 segundos
     }
 
     function cambiarPestana(nombrePestana) {
@@ -260,6 +293,67 @@
         } else if (calendar) {
           setTimeout(() => calendar.updateSize(), 50);
         }
+      }
+    }
+
+    // ENVÍO DE COMANDOS AL ESP32 VÍA FIREBASE
+    function enviarComando(tipoComando) {
+      db.ref('control_pc/comando').set(tipoComando)
+        .then(() => alert('Comando enviado al ESP32: ' + tipoComando))
+        .catch(err => alert('Error al enviar comando: ' + err.message));
+    }
+
+    // LÓGICA DE CONTROL DE RESERVA Y ENCENDIDO (10 MINUTOS ANTES)
+    function escucharPermisosEncendido() {
+      db.ref('reservas').on('value', snapshot => {
+        reservasUsuario = [];
+        const data = snapshot.val();
+        if (data) {
+          Object.keys(data).forEach(key => {
+            const res = data[key];
+            if (res.user === currentUser) {
+              reservasUsuario.push(res);
+            }
+          });
+        }
+        verificarTiempoReserva();
+      });
+    }
+
+    function verificarTiempoReserva() {
+      if (isAdmin) {
+        document.getElementById('user-power-btn').disabled = false;
+        document.getElementById('user-power-status').innerText = 'Modo Admin: Acceso permanente habilitado.';
+        document.getElementById('user-power-status').style.color = '#d29922';
+        return;
+      }
+
+      const ahora = new Date().getTime();
+      let puedeEncender = false;
+      let proximaReservaText = 'Sin reservas activas próximamente.';
+
+      reservasUsuario.forEach(res => {
+        const inicio = new Date(res.start).getTime();
+        const fin = new Date(res.end).getTime();
+        const diezMinAntes = inicio - (10 * 60 * 1000);
+
+        if (ahora >= diezMinAntes && ahora <= fin) {
+          puedeEncender = true;
+          proximaReservaText = 'Reserva activa. ¡Puedes encender el servidor!';
+        }
+      });
+
+      const btn = document.getElementById('user-power-btn');
+      const statusText = document.getElementById('user-power-status');
+
+      if (puedeEncender) {
+        btn.disabled = false;
+        statusText.innerText = proximaReservaText;
+        statusText.style.color = '#3fb950';
+      } else {
+        btn.disabled = true;
+        statusText.innerText = 'Solo disponible 10 minutos antes de tu turno.';
+        statusText.style.color = '#8b949e';
       }
     }
 
@@ -308,7 +402,6 @@
       });
     }
 
-    // GESTIÓN DE SUGERENCIAS
     function enviarSugerencia() {
       const texto = document.getElementById('sugerencia-texto').value.trim();
       if (!texto) return alert('Por favor escribe algo en tu sugerencia.');
@@ -359,14 +452,11 @@
       });
     }
 
-function initCalendar() {
+    function initCalendar() {
       const calendarEl = document.getElementById('calendar');
-      
-      // Detectar si el usuario está en móvil (pantalla menor a 768px)
       const esMovil = window.innerWidth < 768;
 
       calendar = new FullCalendar.Calendar(calendarEl, {
-        // En móvil abre la vista diaria; en PC la semanal
         initialView: esMovil ? 'timeGridDay' : 'timeGridWeek',
         headerToolbar: {
           left: 'prev,next today',
@@ -374,7 +464,7 @@ function initCalendar() {
           right: esMovil ? 'timeGridDay' : 'timeGridWeek,timeGridDay'
         },
         selectable: true,
-        selectLongPressDelay: 200, // Hace que la selección táctil al mantener presionado en móvil sea más precisa
+        selectLongPressDelay: 200,
         height: esMovil ? 'auto' : 650,
         
         select: function(info) {
