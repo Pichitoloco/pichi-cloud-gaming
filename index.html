@@ -72,6 +72,16 @@
       flex-wrap: wrap;
       gap: 10px;
     }
+
+    .badge-status {
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: bold;
+      background: #30363d;
+      color: #8b949e;
+      margin-left: 8px;
+    }
   </style>
 </head>
 <body>
@@ -136,7 +146,8 @@
       <div class="server-control-box">
         <div>
           <span style="font-weight: bold; color: #58a6ff;">🖥️ Control de Encendido</span>
-          <p id="user-power-status" style="font-size: 0.85rem; color: #8b949e;">Comprobando reserva...</p>
+          <span id="server-status-badge" class="badge-status">⚪ COMPROBANDO</span>
+          <p id="user-power-status" style="font-size: 0.85rem; color: #8b949e; margin-top: 4px;">Comprobando reserva...</p>
         </div>
         <button id="user-power-btn" class="btn" disabled onclick="enviarComando('WAKE')">⚡ Encender Servidor</button>
       </div>
@@ -271,9 +282,9 @@
 
       cambiarPestana('calendario');
       
-      // Escuchar cambios de reservas y reevaluar si el usuario puede encender el servidor
       escucharPermisosEncendido();
-      setInterval(verificarTiempoReserva, 15000); // Comprobar cada 15 segundos
+      escucharEstadoPC();
+      setInterval(verificarTiempoReserva, 15000); 
     }
 
     function cambiarPestana(nombrePestana) {
@@ -296,11 +307,63 @@
       }
     }
 
-    // ENVÍO DE COMANDOS AL ESP32 VÍA FIREBASE
+    // ESCUCHAR ESTADO REAL DEL SERVIDOR (SI TIENES EL SENSE)
+    function escucharEstadoPC() {
+      db.ref('control_pc/estado').on('value', snapshot => {
+        const estado = snapshot.val();
+        const badge = document.getElementById('server-status-badge');
+        if (badge) {
+          if (estado === 'ON') {
+            badge.innerText = '🟢 ENCENDIDO';
+            badge.style.background = '#238636';
+            badge.style.color = '#ffffff';
+          } else if (estado === 'OFF') {
+            badge.innerText = '🔴 APAGADO';
+            badge.style.background = '#da3633';
+            badge.style.color = '#ffffff';
+          }
+        }
+      });
+    }
+
+    // ENVÍO DE COMANDOS AL ESP32 VÍA FIREBASE CON COMPROBACIÓN DE 10S
     function enviarComando(tipoComando) {
+      const btnPower = document.getElementById('user-power-btn');
+      if (btnPower) btnPower.disabled = true;
+
+      // 1. Enviar el comando a Firebase
       db.ref('control_pc/comando').set(tipoComando)
-        .then(() => alert('Comando enviado al ESP32: ' + tipoComando))
-        .catch(err => alert('Error al enviar comando: ' + err.message));
+        .then(() => {
+          let transcurridos = 0;
+          
+          // Crear un temporizador para comprobar cada 1s si el ESP32 limpia la orden
+          const timer = setInterval(() => {
+            transcurridos++;
+
+            db.ref('control_pc/comando').once('value', snapshot => {
+              const cmdVal = snapshot.val();
+
+              // Si el ESP32 ya procesó la orden y la cambió a NONE
+              if (cmdVal === 'NONE') {
+                clearInterval(timer);
+                alert('✅ ¡Servidor encendido / comando ejecutado con éxito!');
+                verificarTiempoReserva(); // Reestablecer estado botón
+              } 
+              // Si pasan 10 segundos y sigue en el comando enviado
+              else if (transcurridos >= 10) {
+                clearInterval(timer);
+                alert('⚠️ ERROR: No se ha podido encender el servidor. El módulo ESP32 no responde (comprueba si está conectado a la red).');
+                // Restaurar Firebase a NONE para limpiar el intento fallido
+                db.ref('control_pc/comando').set('NONE');
+                verificarTiempoReserva();
+              }
+            });
+          }, 1000);
+        })
+        .catch(err => {
+          alert('Error al conectar con la base de datos: ' + err.message);
+          verificarTiempoReserva();
+        });
     }
 
     // LÓGICA DE CONTROL DE RESERVA Y ENCENDIDO (10 MINUTOS ANTES)
