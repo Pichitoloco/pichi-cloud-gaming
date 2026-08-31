@@ -329,39 +329,71 @@
     // ENVÍO DE COMANDOS AL ESP32 VÍA FIREBASE CON COMPROBACIÓN DE 10S
     function enviarComando(tipoComando) {
       const btnPower = document.getElementById('user-power-btn');
+      const badge = document.getElementById('server-status-badge');
+    
       if (btnPower) btnPower.disabled = true;
-
-      // 1. Enviar el comando a Firebase
+    
+      // 1. Indicar que el comando se está enviando
+      if (badge) {
+        badge.innerText = '🟡 ENVIANDO...';
+        badge.style.background = '#d29922';
+        badge.style.color = '#ffffff';
+      }
+    
+      // 2. Enviar a Firebase
       db.ref('control_pc/comando').set(tipoComando)
         .then(() => {
           let transcurridos = 0;
-          
-          // Crear un temporizador para comprobar cada 1s si el ESP32 limpia la orden
+    
           const timer = setInterval(() => {
             transcurridos++;
-
+    
             db.ref('control_pc/comando').once('value', snapshot => {
               const cmdVal = snapshot.val();
-
-              // Si el ESP32 ya procesó la orden y la cambió a NONE
+    
+              // El ESP32 leyó el comando y lo cambió a NONE
               if (cmdVal === 'NONE') {
                 clearInterval(timer);
-                alert('✅ ¡Servidor encendido / comando ejecutado con éxito!');
-                verificarTiempoReserva(); // Reestablecer estado botón
+    
+                // 3. Cambiar el badge AHORA en pantalla
+                if (badge) {
+                  badge.innerText = '🟢 RECIBIDO';
+                  badge.style.background = '#238636';
+                  badge.style.color = '#ffffff';
+                }
+    
+                // Un pequeño retardo (50ms) asegura que el navegador pinte el badge verde en pantalla ANTES de pausar con el alert
+                setTimeout(() => {
+                  alert('✅ ¡Servidor encendido / comando ejecutado con éxito!');
+                  verificarTiempoReserva();
+                }, 50);
               } 
-              // Si pasan 10 segundos y sigue en el comando enviado
+              // Si pasan 10s sin respuesta del ESP32
               else if (transcurridos >= 10) {
                 clearInterval(timer);
-                alert('⚠️ ERROR: No se ha podido encender el servidor. El módulo ESP32 no responde (comprueba si está conectado a la red).');
-                // Restaurar Firebase a NONE para limpiar el intento fallido
+    
+                if (badge) {
+                  badge.innerText = '🔴 SIN RESPUESTA';
+                  badge.style.background = '#da3633';
+                  badge.style.color = '#ffffff';
+                }
+    
                 db.ref('control_pc/comando').set('NONE');
-                verificarTiempoReserva();
+    
+                setTimeout(() => {
+                  alert('⚠️ ERROR: El módulo ESP32 no responde (comprueba la conexión).');
+                  verificarTiempoReserva();
+                }, 50);
               }
             });
           }, 1000);
         })
         .catch(err => {
-          alert('Error al conectar con la base de datos: ' + err.message);
+          if (badge) {
+            badge.innerText = '🔴 ERROR BD';
+            badge.style.background = '#da3633';
+          }
+          alert('Error de conexión: ' + err.message);
           verificarTiempoReserva();
         });
     }
